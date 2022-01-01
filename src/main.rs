@@ -8,11 +8,17 @@ use serde::{Serialize, Deserialize};
 mod tests;
 
 async fn create_tasks(user: &mut GooseUser) -> GooseTaskResult {
-    let goose_metric = create_task(user).await?;
+    let mut goose_metric = create_task(user).await?;
 
-    assert_eq!(goose_metric.response.unwrap().status(), StatusCode::CREATED);
+    if let Ok(response) = &goose_metric.response {
+        if response.status() == StatusCode::CREATED {
+            return user.set_success(&mut goose_metric.request);
+        }
+    }
 
-    Ok(())
+    Err(GooseTaskError::RequestFailed {
+        raw_request: goose_metric.request.clone(),
+    })
 }
 
 async fn create_task(user: &mut GooseUser) -> Result<goose::goose::GooseResponse, GooseTaskError> {
@@ -25,11 +31,17 @@ async fn create_task(user: &mut GooseUser) -> Result<goose::goose::GooseResponse
 }
 
 async fn get_task(user: &mut GooseUser, task_id: String) -> GooseTaskResult {
-    let goose_metrics = user.get(&format!("/api/tasks/{}", task_id)).await?;
+    let mut goose_metric = user.get(&format!("/api/tasks/{}", task_id)).await?;
 
-    assert_eq!(goose_metrics.response.unwrap().status(), StatusCode::OK);
+    if let Ok(response) = &goose_metric.response {
+        if response.status() == StatusCode::OK {
+            return user.set_success(&mut goose_metric.request);
+        }
+    }
 
-    Ok(())
+    Err(GooseTaskError::RequestFailed {
+        raw_request: goose_metric.request.clone(),
+    })
 }
 
 #[derive(Serialize, Deserialize, Debug)]
